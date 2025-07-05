@@ -262,9 +262,14 @@ small {
 
 .modal-buttons {
   display: flex;
+  justify-content: flex-end;
   gap: 10px;
-  margin-top: 15px;
-  justify-content: flex-start;
+  padding: 10px;
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 1px solid #eee;
+  z-index: 1000;
 }
 
 /* For desktop screens */
@@ -286,31 +291,60 @@ small {
   }
 }
 
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .add-note-content {
+    padding: 15px;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .add-note-content textarea {
+    height: calc(100vh - 120px);
+    margin-bottom: 0;
+  }
+
+  .modal-buttons {
+    padding: 15px;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .icon-button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+  }
+}
+
 .icon-button {
-  background: none;
-  border: none;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
   padding: 8px;
-  cursor: pointer;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #007aff;
+  background-color: #007aff;
+  color: white;
   transition: background-color 0.2s ease;
 }
 
 .icon-button:hover {
-  background-color: rgba(0, 122, 255, 0.1);
+  background-color: #0056b3;
 }
 
 .icon-button.delete-button {
-  color: #ff3b30;
+  background-color: #ff3b30;
 }
 
 .icon-button.delete-button:hover {
-  background-color: rgba(255, 59, 48, 0.1);
+  background-color: #d63030;
 }
 
 .material-icons {
   font-size: 24px;
+  line-height: 1;
 } 
