@@ -1,56 +1,50 @@
 import React, { useState } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc } from '@firebase/firestore';
 import { db } from '../utils/firebase';
 import { NoteModal } from './NoteModal';
 
-export const AddNote: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
+interface AddNoteProps {
+  userId: string;
+}
+
+export const AddNote: React.FC<AddNoteProps> = ({ userId }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState('');
 
   const handleSave = async () => {
-    if (!content.trim()) {
-      alert('Please enter some content');
-      return;
-    }
+    if (!content.trim()) return;
 
     try {
       await addDoc(collection(db, 'notes'), {
         content: content.trim(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        userId,
+        timestamp: Date.now(),
       });
-
-      // Clear form and collapse
       setContent('');
-      setIsExpanded(false);
+      setIsOpen(false);
     } catch (error) {
       console.error('Error adding note:', error);
-      alert('Failed to add note');
     }
   };
 
-  const handleClose = () => {
-    setContent('');
-    setIsExpanded(false);
-  };
-
-  if (!isExpanded) {
-    return (
-      <button 
+  return (
+    <>
+      <button
         className="add-note-button"
-        onClick={() => setIsExpanded(true)}
+        onClick={() => setIsOpen(true)}
+        title="Add Note"
       >
         <span className="material-icons">add</span>
       </button>
-    );
-  }
 
-  return (
-    <NoteModal
-      content={content}
-      onContentChange={setContent}
-      onSave={handleSave}
-      onClose={handleClose}
-    />
+      {isOpen && (
+        <NoteModal
+          content={content}
+          onContentChange={setContent}
+          onSave={handleSave}
+          onClose={() => setIsOpen(false)}
+        />
+      )}
+    </>
   );
 }; 

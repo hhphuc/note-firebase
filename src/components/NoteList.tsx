@@ -1,132 +1,132 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, deleteDoc, doc, where, updateDoc } from '@firebase/firestore';
 import { db } from '../utils/firebase';
-import { Note } from '../types/Note';
 import { NoteModal } from './NoteModal';
+import { Note } from '../types/Note';
 
-export const NoteList: React.FC = () => {
+interface NoteListProps {
+  userId: string;
+}
+
+export const NoteList: React.FC<NoteListProps> = ({ userId }) => {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Create a query for notes, ordered by updatedAt
-    const q = query(collection(db, 'notes'), orderBy('updatedAt', 'desc'));
+    const q = query(
+      collection(db, 'notes'),
+      where('userId', '==', userId)
+      // Temporarily removed orderBy until index is ready
+      // orderBy('timestamp', 'desc')
+    );
 
-    // Set up real-time listener
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const notesList: Note[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log('data :>> ', data);
-        notesList.push({
-          id: doc.id,
-          content: data.content,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-        });
-      });
-      setNotes(notesList);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const notesList = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            content: doc.data().content,
+            timestamp: doc.data().timestamp,
+            userId: doc.data().userId,
+          }))
+          .filter((note) => note.userId === userId)
+          // Sort in memory instead
+          .sort((a, b) => b.timestamp - a.timestamp);
+        
+        setNotes(notesList);
+      },
+      (error) => {
+        console.error('Error in snapshot listener:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch notes');
+      }
+    );
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, []);
+  }, [userId]);
 
   const handleDelete = async (noteId: string) => {
-    if (!window.confirm('Are you sure you want to delete this note?')) {
-      return;
-    }
-
     try {
-      await deleteDoc(doc(db, 'notes', noteId));
+      const noteRef = doc(db, 'notes', noteId);
+      await deleteDoc(noteRef);
     } catch (error) {
       console.error('Error deleting note:', error);
-      alert('Failed to delete note');
+      setError(error instanceof Error ? error.message : 'Failed to delete note');
     }
   };
 
-  const handleSave = async () => {
-    if (!editingId || !editContent.trim()) return;
-
-    try {
-      await updateDoc(doc(db, 'notes', editingId), {
-        content: editContent.trim(),
-        updatedAt: serverTimestamp()
-      });
-      setEditingId(null);
-      setEditContent('');
-    } catch (error) {
-      console.error('Error updating note:', error);
-      alert('Failed to update note');
-    }
-  };
-
-  const startEditing = (note: Note) => {
-    setEditingId(note.id);
+  const handleNoteClick = (note: Note) => {
+    setSelectedNote(note);
     setEditContent(note.content);
   };
 
-  const handleClose = () => {
-    setEditingId(null);
-    setEditContent('');
+  const handleSave = async () => {
+    if (!selectedNote || !editContent.trim()) return;
+
+    try {
+      const noteRef = doc(db, 'notes', selectedNote.id);
+      await updateDoc(noteRef, {
+        content: editContent.trim(),
+        timestamp: Date.now(),
+      });
+      setSelectedNote(null);
+      setEditContent('');
+    } catch (error) {
+      console.error('Error updating note:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update note');
+    }
   };
 
-  const getNoteParts = (content: string) => {
-    const lines = content.split('\n');
-    const title = lines[0] || 'Untitled';
-    const body = lines.slice(1).join('\n').trim();
-    return { title, body };
-  };
+  if (error) {
+    return <div className="error-message">Error: {error}</div>;
+  }
 
   return (
     <div className="note-list">
       {notes.length === 0 ? (
-        <p className="empty-notes">No notes yet. Create your first note!</p>
+        <p className="empty-notes">No notes yet. Add one!</p>
       ) : (
         <ul>
-          {notes.map((note) => {
-            const { title, body } = getNoteParts(note.content);
-            
-            if (editingId === note.id) {
-              return (
-                <NoteModal
-                  key={note.id}
-                  content={editContent}
-                  onContentChange={setEditContent}
-                  onSave={handleSave}
-                  onClose={handleClose}
-                />
-              );
-            }
-
-            return (
-              <li key={note.id} onClick={() => startEditing(note)} className="note-item">
-                <div className="note-header">
-                  <h3>{title}</h3>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(note.id);
-                    }}
-                    className="icon-button delete-button"
-                    title="Delete"
-                  >
-                    <span className="material-icons">delete_outline</span>
-                  </button>
-                </div>
-                {body && (
-                  <pre className="note-preview">
-                    {body}
-                  </pre>
-                )}
+          {notes.map((note) => (
+            <li key={note.id} className="note-item" onClick={() => handleNoteClick(note)}>
+              <div className="note-content">
+                <pre className="note-preview">{note.content}</pre>
                 <small>
-                  Last updated: {note.updatedAt?.toLocaleDateString()}
+                  {new Date(note.timestamp).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </small>
-              </li>
-            );
-          })}
+              </div>
+              <button
+                className="icon-button delete-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(note.id);
+                }}
+                title="Delete"
+              >
+                <span className="material-icons">delete</span>
+              </button>
+            </li>
+          ))}
         </ul>
+      )}
+      {selectedNote && (
+        <NoteModal
+          content={editContent}
+          onContentChange={setEditContent}
+          onSave={handleSave}
+          onClose={() => {
+            setSelectedNote(null);
+            setEditContent('');
+          }}
+        />
       )}
     </div>
   );

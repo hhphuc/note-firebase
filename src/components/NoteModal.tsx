@@ -31,19 +31,19 @@ export const NoteModal: React.FC<NoteModalProps> = ({
           />
           <div className="modal-buttons">
             <button 
-              type="submit" 
-              className="icon-button"
-              title="Save"
-            >
-              <span className="material-icons">check</span>
-            </button>
-            <button 
               type="button" 
               onClick={onClose}
               className="icon-button"
               title="Cancel"
             >
               <span className="material-icons">close</span>
+            </button>
+            <button 
+              type="submit" 
+              className="icon-button"
+              title="Save"
+            >
+              <span className="material-icons">check</span>
             </button>
           </div>
         </form>
